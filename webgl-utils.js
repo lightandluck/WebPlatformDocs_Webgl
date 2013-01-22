@@ -38,3 +38,17 @@ function createProgram(vertexId, fragmentId) {
     }     
     return program;
 }
+
+function createVertexBuffer(gl) {
+    
+    var vertexBuffer = gl.createBuffer();
+    vertexBuffer.itemSize = 2;
+    vertexBuffer.numItems = 4;
+    
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    
+    var vertices = [-1, -1, 1, -1, -1, 1, 1, 1];
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    
+    return vertexBuffer;
+}
