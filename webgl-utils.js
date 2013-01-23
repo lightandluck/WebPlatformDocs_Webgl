@@ -52,3 +52,15 @@ function createVertexBuffer(gl) {
     
     return vertexBuffer;
 }
+
+function draw() {
+    offset[0] += -(actions.panleft ? scale / 25 : 0) + (actions.panright ? scale / 25 : 0);
+    offset[1] += -(actions.pandown ? scale/25: 0) + (actions.panup ? scale/25 : 0);
+    scale = scale * (actions.zoomin ? 0.975 : 1.0)  / (actions.zoomout ? 0.975 : 1.0);
+    
+    gl.uniform2f(program.canvasSizeUniform, canvas.width, canvas.height);
+    gl.uniform2f(program.offsetUniform, offset[0], offset[1]);
+    gl.uniform1f(program.scaleUniform, scale);
+    
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexBuffer.numItems);
+}

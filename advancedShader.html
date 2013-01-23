@@ -14,28 +14,40 @@
             }
         </script>
         <script id="shader-fs" type="x-shader/x-fragment">
-            precision highp float;
+            #ifdef GL_FRAGMENT_PRECISION_HIGH
+                precision highp float;
+            #else
+                precision mediump float;
+            #endif
             precision mediump int;
             uniform vec2 uCanvasSize;
+            uniform vec2 uOffset;
+            uniform float uScale;
 
             vec4 calc(vec2 texCoord) {
                 float x = 0.0;
                 float y = 0.0;
-                
+                float v = 10000.0;
+                float j = 10000.0;
+
                 for (int iteration = 0; iteration < 100; ++iteration) {
-                    float xtemp = x*x - y*y+texCoord.x;
-                    y = 2.0 + x*y + texCoord.y;
+                    float xtemp = x*x-y*y+texCoord.x;
+                    y = 2.0*x*y+texCoord.y;
                     x = xtemp;
-                    if(x*x + y*y >= 8.0) {
-                        float d = float(iteration)/20.0;
-                        return vec4(d, d, d, 1);
-                    }
-                    
+                    v = min(v, abs(x*x+y*y));
+                    j = min(j, abs(x*y));
+                    if (x*x+y*y >= 8.0) {
+                        float d = (float(iteration) - (log(log(sqrt(x*x+y*y))) / log(2.0))) / 50.0;
+                        v = (1.0 - v) / 2.0;
+                        j = (1.0 - j) / 2.0;
+                        return vec4(d+j,d,d+v,1);
+                    }                    
                 }
-                return vec4(0, 0, 0, 1);
+                return vec4(0,0,0,1);
             }
             void main() {   
-                vec2 texCoord = (gl_FragCoord.xy / uCanvasSize.xy) * 2.0 - vec2(1.0, 1.0);    
+                vec2 texCoord = (gl_FragCoord.xy / uCanvasSize.xy) * 2.0 - vec2(1.0, 1.0);   
+                texCoord = texCoord * uScale + uOffset;
                 gl_FragColor = calc(texCoord);
             }
         </script>
@@ -45,24 +57,64 @@
         <script>
             var canvas = document.getElementById("canvas");
             var gl = canvas.getContext("experimental-webgl");
+            var iv = null;
+            
             canvas.width = canvas.height = 900;
             gl.viewport(0, 0, canvas.width, canvas.height);
-            gl.clearColor(0, 0, 0.8, 1);
+            gl.clearColor(0, 0.8, 0.8, 1);
             gl.clear(gl.COLOR_BUFFER_BIT);
             
             var vertexBuffer = createVertexBuffer(gl);
+            var offset = [-0.5, 0];
+            var scale = 1.35;
             
+            var actions = {};
+            var keyMappings = {
+                "37" : "panleft",
+                "38" : "panup",
+                "39" : "panright",
+                "40" : "pandown",
+                "90" : "zoomin",
+                "88" : "zoomout"
+            };
             
+            for (var k in keyMappings) {
+                actions[keyMappings[k]] = false;
+            }
+            
+            window.onkeydown = function(e) {
+                var kc = e.keyCode.toString();
+                if (keyMappings.hasOwnProperty(kc)) {
+                    actions[keyMappings[kc]]  = true;
+                    if(!iv) {
+                        iv  = setInterval(draw, 16);
+                    }
+                }
+            }
+                
+            window.onkeyup = function(e) {
+                var kc = e.keyCode.toString();
+                if (keyMappings.hasOwnProperty(kc)) {
+                    actions[keyMappings[kc]] = false;
+                }
+                clearInterval(iv);
+                iv = null;
+            }
+                
             
             var program = createProgram("shader-vs", "shader-fs");
             gl.useProgram(program);
             
             program.vertexPosAttrib = gl.getAttribLocation(program, "aVertexPosition");
             program.canvasSizeUniform = gl.getUniformLocation(program, "uCanvasSize");
+            program.offsetUniform = gl.getUniformLocation(program, "uOffset");
+            program.scaleUniform = gl.getUniformLocation(program, "uScale");
+            
             gl.enableVertexAttribArray(program.vertexPosAttrib);
             gl.vertexAttribPointer(program.vertexPosAttrib, vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
-            gl.uniform2f(program.canvasSizeUniform, canvas.width, canvas.height);
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexBuffer.numItems);
+            
+            
+           draw();
                             
             
         </script>
